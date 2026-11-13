@@ -81,8 +81,11 @@ function merge(def: any, val: any) {
   return val ?? def;
 }
 
-export async function getContent<T = any>(key: string): Promise<T> {
-  const [r] = await sql`select value from site_content where key = ${key}`;
+export async function getContent<T = any>(
+  key: string,
+  db: any = sql
+): Promise<T> {
+  const [r] = await db`select value from site_content where key = ${key}`;
   return merge(DEFAULTS[key], r?.value) as T;
 }
 export async function getAllContent(keys = Object.keys(DEFAULTS)) {

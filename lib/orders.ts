@@ -7,8 +7,8 @@ import { money } from './format';
 export type CartLine = { variant_id: string; qty: number };
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
-export async function shippingOptions(subtotal: number) {
-  const s = await getContent('store');
+export async function shippingOptions(subtotal: number, db: any = sql) {
+  const s = await getContent('store', db);
   return [
     { id: 'standard', label: 'Standard Delivery', note: '3–5 working days', price: subtotal >= Number(s.free_shipping_threshold) ? 0 : Number(s.standard_rate) },
     { id: 'express', label: 'Express Delivery', note: '1–2 working days', price: Number(s.express_rate) },
@@ -17,7 +17,7 @@ export async function shippingOptions(subtotal: number) {
 }
 
 export async function checkDiscount(code: string | null | undefined, subtotal: number, db: any = sql) {
-  const cur = (await getContent('store')).currency;
+ const cur = (await getContent('store', db)).currency;
   if (!code) return { ok: true, amount: 0, code: null as string | null };
   const [d] = await db`select * from discount_codes where upper(code) = upper(${code.trim()})`;
   const now = new Date();
@@ -39,7 +39,7 @@ export async function priceCart(lines: CartLine[], db: any = sql) {
       (select pi.image_id from product_images pi where pi.product_id = p.id order by pi.sort_order limit 1) as image_id,
       coalesce((select json_agg(json_build_object('id', pc.category_id)) from product_categories pc where pc.product_id = p.id), '[]') as categories
     from product_variants v join products p on p.id = v.product_id where v.id = any(${ids}::uuid[])`;
-  const camps = await activeCampaigns();
+ const camps = await activeCampaigns(db);
   const problems: string[] = [];
   const items = [];
   for (const l of lines) {
@@ -81,7 +81,7 @@ export async function placeOrder(input: PlaceInput) {
     const cart = await priceCart(input.lines, tx);
     if (!cart.items.length) throw new Error('Your bag is empty.');
     if (cart.problems.length) throw new Error(cart.problems.join(' '));
-    const ship = (await shippingOptions(cart.subtotal)).find(s => s.id === input.shipping_method);
+   const ship = (await shippingOptions(cart.subtotal, tx)).find(s => s.id === input.shipping_method);
     if (!ship) throw new Error('Please choose a delivery method.');
     const disc = await checkDiscount(input.discount_code, cart.subtotal, tx);
     if (!disc.ok) throw new Error((disc as any).message);

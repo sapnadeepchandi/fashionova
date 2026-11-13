@@ -10,8 +10,8 @@ export type Product = {
   categories: { id: string; name: string; slug: string }[]; stock_total: number; created_at: string;
 };
 
-export async function activeCampaigns() {
-  return sql`select id, name, percent_off, category_id, announcement from campaigns where active and now() between starts_at and ends_at order by percent_off desc`;
+export async function activeCampaigns(db: any = sql) {
+  return db`select id, name, percent_off, category_id, announcement from campaigns where active and now() between starts_at and ends_at order by percent_off desc`;
 }
 
 export function applyPricing(p: any, campaigns: any[]): Product {
